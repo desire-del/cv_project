@@ -1,0 +1,8 @@
+ipykernel
+numpy
+opencv_contrib_python
+pandas
+Pillow
+torch
+transformers
+ultralytics
