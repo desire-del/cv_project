@@ -1,3 +1,10 @@
-ultralytics==8.3.146
-opencv-python
-torch>=2.0.0
+ipykernel
+numpy
+opencv_contrib_python
+pandas
+Pillow
+torch
+transformers
+ultralytics
+deep_sort_realtime
+
