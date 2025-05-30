@@ -15,8 +15,8 @@ class BallTracker:
 
     def __init__(
         self,
-        model_path: str = "models/court_keypoints.pt",  
-        max_age: int = 30,
+        model_path: str = "models/ball_detector_model.pt",  
+        max_age: int = 15,
         conf_threshold: float = 0.5
     ):
         """
