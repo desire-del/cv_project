@@ -1,1 +1,1 @@
-from .draw_player import PlayerTracksDrawer
+from src.draws.draw_player import PlayerTracksDrawer
