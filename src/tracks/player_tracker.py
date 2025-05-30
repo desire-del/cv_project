@@ -1,5 +1,7 @@
 from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort
+
+
 import sys
 sys.path.append('../../')
 
