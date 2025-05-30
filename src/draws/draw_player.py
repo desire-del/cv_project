@@ -1,4 +1,4 @@
-from .utils import draw_ellipse, draw_triangle
+from src.draws.utils import draw_ellipse, draw_triangle
 import cv2
 import numpy as np
 from collections import defaultdict
