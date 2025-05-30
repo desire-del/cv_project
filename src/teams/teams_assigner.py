@@ -46,7 +46,7 @@ class TeamAssigner:
         image = frame[int(bbox[1]):int(bbox[3]),int(bbox[0]):int(bbox[2])]
         print(f"Processing bbox: {bbox}, image shape: {image.shape}")
 
-        # Convert to PIL Image
+        
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         pil_image = Image.fromarray(rgb_image)
         image = pil_image

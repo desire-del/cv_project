@@ -29,7 +29,7 @@ def save_video(frames, path, fps=30):
         raise ValueError("No frames to write.")
 
     height, width, _ = frames[0].shape
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Use 'XVID' or 'avc1' if needed
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')  # Use 'XVID' or 'avc1' if needed
     out = cv2.VideoWriter(path, fourcc, fps, (width, height))
 
     for frame in frames:

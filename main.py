@@ -8,6 +8,11 @@ from src.ball_aquisition.ball_aquisition_detector import BallAquisitionDetector
 from src.draws.teams_ball_pos_draw import TeamBallControlDrawer
 from src.draws.passes_interceptions_draw import PassInterceptionDrawer
 from src.passes.passes_interceptions import PassAndInterceptionDetector
+from src.court_keypoint_detector.court_keypoint_detector import CourtKeypointDetector
+from src.draws.court_key_points_drawer import CourtKeypointDrawer
+from src.tactic_view.tactic_view_converter import TacticalViewConverter
+from src.draws.tactic_viewer_drawer import TacticalViewDrawer
+from src.speed_and_distance_calculator import SpeedAndDistanceCalculator
 import cv2
 
 model_path = "models/players_detection_model.pt"
@@ -32,8 +37,7 @@ player_teams = team_assigner.get_player_teams_across_frames(video_frames=frames,
                                                               player_tracks=player_tracks,
                                                               read_from_stub=True,
                                                               stub_path="cache/team_assignments.pkl")
-print(ball_tracks_result)
-print(player_teams)
+
 
 ball_acquisition_detector = BallAquisitionDetector()
 ball_acquisition = ball_acquisition_detector.detect_ball_possession(player_tracks=player_tracks,ball_tracks=ball_tracks_result)
@@ -45,11 +49,20 @@ passes = passes_interception_detector.detect_passes(ball_acquisition=ball_acquis
 interceptions = passes_interception_detector.detect_interceptions(ball_acquisition=ball_acquisition,
                                                               player_assignment=player_teams)
 
+court_keypoint_detector = CourtKeypointDetector()
+court_keypoints = court_keypoint_detector.detect_keypoints(frames=frames, read_from_stub=True, stub_path="cache/court_keypoints.pkl")
+
+tactical_view_converter = TacticalViewConverter(court_image_path="data/basketball_court.png")
+
+court__keypoints_per_frame = tactical_view_converter.validate_keypoints(court_keypoints)
+tactical_player_positions = tactical_view_converter.transform_players_to_tactical_view(court__keypoints_per_frame, player_tracks)
 
 player_drawer = PlayerTracksDrawer()
 ball_drawer = BallTracksDrawer()
 ball_possession_drawer = TeamBallControlDrawer(team_colors={1: [255, 245, 238], 2: [128, 0, 0]})
-pass_interception_drawer = PassInterceptionDrawer()
+pass_interception_drawer = PassInterceptionDrawer(team_colors={1: [255, 245, 238], 2: [128, 0, 0]})
+court_keypoint_drawer = CourtKeypointDrawer()
+tactical_view_drawer = TacticalViewDrawer(team_1_color=[255, 245, 238], team_2_color=[128, 0, 0])
 
 
 output_frame = player_drawer.draw(video_frames=frames,
@@ -60,6 +73,16 @@ output_frame = player_drawer.draw(video_frames=frames,
 output_frame = ball_drawer.draw(video_frames=output_frame,
                                  tracks=ball_tracks_result)
 
+output_frame = tactical_view_drawer.draw(output_frame,
+                                        tactical_view_converter.court_image_path,
+                                        tactical_view_converter.width,
+                                        tactical_view_converter.height,
+                                        tactical_view_converter.key_points,
+                                        tactical_player_positions,
+                                        player_teams,
+                                        ball_acquisition
+                                        )
+
 output_frame = ball_possession_drawer.draw(video_frames=output_frame,
                                             player_assignment=player_teams,
                                             ball_acquisition=ball_acquisition)
@@ -67,6 +90,9 @@ output_frame = ball_possession_drawer.draw(video_frames=output_frame,
 output_frame = pass_interception_drawer.draw(video_frames=output_frame,
                                                passes=passes,
                                                interceptions=interceptions)
+
+output_frame = court_keypoint_drawer.draw(frames=output_frame,
+                                            court_keypoints=court_keypoints)
 
 save_video(frames=output_frame,
            path="data/videos/video_1_output.mp4",
