@@ -82,7 +82,8 @@ class PlayerTracker:
                     continue
                 track_id = t.track_id
                 l, t_, w, h = map(int, t.to_tlwh())
-                tracks_frame[track_id] = {"bbox": [l, t_, w, h]}
+                x1, y1, x2, y2 = l, t_, l + w, t_ + h
+                tracks_frame[track_id] = {"bbox": [x1, y1, x2, y2]}
 
             tracks_per_frame.append(tracks_frame)
 
