@@ -1,94 +1,98 @@
-
-
 from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort
+import numpy as np
+import pandas as pd
 import sys
-sys.path.append('../../')  
-
-from src.utils import read_stub, save_stub
+sys.path.append('../../')
+from utils import read_stub, save_stub
 
 
 class BallTracker:
-    """
-    A class for ball detection and tracking using YOLOv8 and Deep SORT.
-    """
-
-    def __init__(
-        self,
-        model_path: str = "models/ball_detector_model.pt",  
-        max_age: int = 15,
-        conf_threshold: float = 0.5
-    ):
-        """
-        Args:
-            model_path (str): Path to the YOLO model weights.
-            max_age (int): Max number of frames to keep a lost track.
-            conf_threshold (float): Confidence threshold for detections.
-        """
+    def __init__(self, model_path, max_age=15, conf_threshold=0.5):
         self.model = YOLO(model_path)
         self.tracker = DeepSort(max_age=max_age)
         self.conf_threshold = conf_threshold
 
-    def process_batches(self, frames):
-        """
-        Run YOLO detection (par frame) sur une liste de frames.
-        Returns une liste de résultats de détection.
-        """
+    def detect_frames(self, frames):
+        batch_size = 20
         detections = []
-        for frame in frames:
-            result = self.model.predict(frame, conf=self.conf_threshold, verbose=False)
-            detections.append(result[0])
+        for i in range(0, len(frames), batch_size):
+            detections_batch = self.model.predict(frames[i:i + batch_size], conf=self.conf_threshold)
+            detections += detections_batch
         return detections
 
-    def track_ball(self, frames, use_cache=False, cache_path=None):
-        """
-        Track the ball over a sequence of frames, with optional caching.
+    def get_object_tracks(self, frames, read_from_stub=False, stub_path=None):
+        tracks = read_stub(read_from_stub, stub_path)
+        if tracks is not None and len(tracks) == len(frames):
+            return tracks
 
-        Args:
-            frames (List[np.ndarray]): Video frames.
-            use_cache (bool): Si True, tente de charger depuis le cache.
-            cache_path (str): Chemin vers le fichier de cache.
+        detections = self.detect_frames(frames)
+        print(detections)
+        result_tracks = []
 
-        Returns:
-            List[Dict[int, Dict]]: Pour chaque frame, un dict mapping track_id -> {"bbox": [x, y, w, h]}.
-        """
-        # 1) Tentative de chargement du cache
-        cached = read_stub(use_cache, cache_path)
-        if cached is not None and len(cached) == len(frames):
-            return cached
+        for i, detection in enumerate(detections):
+            frame = frames[i]
+            frame_tracks = {}
 
-        # 2) Détection
-        detections = self.process_batches(frames)
-        tracks_per_frame = []
+            cls_names = detection.names
+            cls_names_inv = {v: k for k, v in cls_names.items()}
+            ball_cls_id = cls_names_inv.get('Ball')
 
-        for i, det in enumerate(detections):
-            # Trouver l'ID de la classe "Ball"
-            inv_names = {v: k for k, v in det.names.items()}
-            ball_cls_id = inv_names.get('Ball', None)
-
-            # Préparer les entrées pour Deep SORT
             det_inputs = []
-            for box, score, cls in zip(
-                det.boxes.xyxy.cpu().numpy(),
-                det.boxes.conf.cpu().numpy(),
-                det.boxes.cls.cpu().numpy()
+            for box, conf, cls in zip(
+                detection.boxes.xyxy.cpu().numpy(),
+                detection.boxes.conf.cpu().numpy(),
+                detection.boxes.cls.cpu().numpy()
             ):
-                if cls == ball_cls_id and score >= self.conf_threshold:
+                if cls == ball_cls_id and conf >= self.conf_threshold:
                     x1, y1, x2, y2 = map(int, box)
                     w, h = x2 - x1, y2 - y1
-                    det_inputs.append([[x1, y1, w, h], float(score), 'ball'])
+                    det_inputs.append([[x1, y1, w, h], float(conf), 'ball'])
 
-            # Mettre à jour le tracker
-            updated = self.tracker.update_tracks(det_inputs, frame=frames[i])
-            frame_tracks = {}
-            for t in updated:
-                if not t.is_confirmed():
+            updated_tracks = self.tracker.update_tracks(det_inputs, frame=frame)
+
+            for track in updated_tracks:
+                if not track.is_confirmed():
                     continue
-                tid = t.track_id
-                l, t_, w, h = map(int, t.to_tlwh())
-                frame_tracks[tid] = {"bbox": [l, t_, w, h]}
+                tid = track.track_id
+                x, y, w, h = map(int, track.to_tlwh())
+                frame_tracks[tid] = {"bbox": [x, y, x + w, y + h]}
 
-            tracks_per_frame.append(frame_tracks)
+            result_tracks.append(frame_tracks)
 
-        save_stub(cache_path, tracks_per_frame)
-        return tracks_per_frame
+        save_stub(stub_path, result_tracks)
+        return result_tracks
+
+    def remove_wrong_detections(self, ball_positions, max_distance=25):
+        last_good_frame_index = -1
+
+        for i in range(len(ball_positions)):
+            current = list(ball_positions[i].values())
+            if not current:
+                continue
+            current_box = current[0]['bbox']
+
+            if last_good_frame_index == -1:
+                last_good_frame_index = i
+                continue
+
+            last_box = list(ball_positions[last_good_frame_index].values())[0]['bbox']
+            dist = np.linalg.norm(np.array(current_box[:2]) - np.array(last_box[:2]))
+            if dist > max_distance * (i - last_good_frame_index):
+                ball_positions[i] = {}
+            else:
+                last_good_frame_index = i
+
+        return ball_positions
+
+    def interpolate_ball_positions(self, ball_positions):
+        bboxes = []
+        for d in ball_positions:
+            if d:
+                bbox = list(d.values())[0]['bbox']
+            else:
+                bbox = [np.nan] * 4
+            bboxes.append(bbox)
+
+        df = pd.DataFrame(bboxes, columns=['x1', 'y1', 'x2', 'y2']).interpolate().bfill()
+        return [{1: {"bbox": row.tolist()}} for _, row in df.iterrows()]

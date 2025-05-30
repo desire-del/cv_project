@@ -32,32 +32,38 @@ class TeamAssigner:
             logger.error(f"Failed to load model: {e}")
             raise
 
-    def get_player_color(self, frame, bbox: Tuple[int, int, int, int]) -> Optional[str]:
-        try:
-            x1, y1, x2, y2 = map(int, bbox)
-            h, w, _ = frame.shape
-            x1, y1 = max(0, x1), max(0, y1)
-            x2, y2 = min(w, x2), min(h, y2)
-            
-            if x2 <= x1 or y2 <= y1:
-                logger.warning(f"Invalid bounding box dimensions: {bbox}")
-                return None
+    def get_player_color(self,frame,bbox):
+        """
+        Analyzes the jersey color of a player within the given bounding box.
 
-            cropped_img = frame[y1:y2, x1:x2]
-            rgb_image = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2RGB)
-            pil_image = Image.fromarray(rgb_image)
+        Args:
+            frame (numpy.ndarray): The video frame containing the player.
+            bbox (tuple): Bounding box coordinates of the player.
 
-            classes = [self.team_1_class_name, self.team_2_class_name]
-            inputs = self.processor(text=classes, images=pil_image, return_tensors="pt", padding=True)
+        Returns:
+            str: The classified jersey color/description.
+        """
+        image = frame[int(bbox[1]):int(bbox[3]),int(bbox[0]):int(bbox[2])]
+        print(f"Processing bbox: {bbox}, image shape: {image.shape}")
 
-            with torch.no_grad():
-                outputs = self.model(**inputs)
-            probs = outputs.logits_per_image.softmax(dim=1)
-            class_name = classes[probs.argmax(dim=1).item()]
-            return class_name
-        except Exception as e:
-            logger.error(f"Error classifying jersey color: {e}")
-            return None
+        # Convert to PIL Image
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(rgb_image)
+        image = pil_image
+
+        classes = [self.team_1_class_name, self.team_2_class_name]
+
+        inputs = self.processor(text=classes, images=image, return_tensors="pt", padding=True)
+
+        outputs = self.model(**inputs)
+        logits_per_image = outputs.logits_per_image
+        probs = logits_per_image.softmax(dim=1) 
+
+
+        class_name=  classes[probs.argmax(dim=1)[0]]
+
+        return class_name
+
 
     def get_player_team(self, frame, player_bbox: Tuple[int, int, int, int], player_id: int) -> int:
         if player_id in self.player_team_dict:
