@@ -29,8 +29,8 @@ def main():
     with col1:
         st.image("data/logo.png", width=120)
     with col2:
-        st.title("Analyse Tactique Vidéo de Basketball")
-        st.markdown("**Projet Universitaire** – Analyse tactique assistée par l'IA")
+        st.title("Analyse Vidéo de Matchs de Basketball avec Détection Automatique")
+        st.markdown("**Projet Universitaire** - Analyse tactique assistée par l'IA")
 
     st.markdown("---")
 
