@@ -1,6 +1,6 @@
 
 import sys 
-sys.path.append('../')
+sys.path.append('../../')
 from src.utils.bbox import measure_distance, get_center_of_bbox
 
 class BallAquisitionDetector:

@@ -26,17 +26,21 @@ class BallTracksDrawer:
             ball_dict = tracks[frame_num]
 
             for track_id, ball in ball_dict.items():
-                bbox = ball.get("bbox")
+                bbox = ball.get("bbox")  # Expected format: [x1, y1, x2, y2]
                 if not bbox:
                     continue
 
-                x, y, w, h = bbox
-                center = (int(x + w / 2), int(y + h / 2))
-                self.trail_history[track_id].append(center)
+                x1, y1, x2, y2 = bbox
+                center = (int((x1 + x2) / 2), int((y1 + y2) / 2))
 
+                self.trail_history[track_id].append(center)
                 self.draw_trail(frame, self.trail_history[track_id], self.ball_color)
                 frame = draw_triangle(frame, bbox, self.ball_color)
 
+                # Draw triangle marker on the ball
+                frame = draw_triangle(frame, bbox, self.ball_color)
+
+                # Optional: direction arrow
                 if len(self.trail_history[track_id]) > 1:
                     prev = self.trail_history[track_id][-2]
                     cv2.arrowedLine(frame, prev, center, self.ball_color, 2, tipLength=0.4)
