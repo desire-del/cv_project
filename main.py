@@ -6,6 +6,8 @@ from src.teams.teams_assigner import TeamAssigner
 from src.tracks.ball_tracker import BallTracker
 from src.ball_aquisition.ball_aquisition_detector import BallAquisitionDetector
 from src.draws.teams_ball_pos_draw import TeamBallControlDrawer
+from src.draws.passes_interceptions_draw import PassInterceptionDrawer
+from src.passes.passes_interceptions import PassAndInterceptionDetector
 import cv2
 
 model_path = "models/players_detection_model.pt"
@@ -36,10 +38,19 @@ print(player_teams)
 ball_acquisition_detector = BallAquisitionDetector()
 ball_acquisition = ball_acquisition_detector.detect_ball_possession(player_tracks=player_tracks,ball_tracks=ball_tracks_result)
 
+passes_interception_detector = PassAndInterceptionDetector()
+passes = passes_interception_detector.detect_passes(ball_acquisition=ball_acquisition,
+                                                     player_assignment=player_teams)
+
+interceptions = passes_interception_detector.detect_interceptions(ball_acquisition=ball_acquisition,
+                                                              player_assignment=player_teams)
+
 
 player_drawer = PlayerTracksDrawer()
 ball_drawer = BallTracksDrawer()
 ball_possession_drawer = TeamBallControlDrawer(team_colors={1: [255, 245, 238], 2: [128, 0, 0]})
+pass_interception_drawer = PassInterceptionDrawer()
+
 
 output_frame = player_drawer.draw(video_frames=frames,
                    tracks=player_tracks,
@@ -52,6 +63,11 @@ output_frame = ball_drawer.draw(video_frames=output_frame,
 output_frame = ball_possession_drawer.draw(video_frames=output_frame,
                                             player_assignment=player_teams,
                                             ball_acquisition=ball_acquisition)
+
+output_frame = pass_interception_drawer.draw(video_frames=output_frame,
+                                               passes=passes,
+                                               interceptions=interceptions)
+
 save_video(frames=output_frame,
            path="data/videos/video_1_output.mp4",
            fps=fps)
