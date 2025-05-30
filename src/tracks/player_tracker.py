@@ -1,57 +1,88 @@
-import cv2
 from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort
+import sys
+sys.path.append('../../')
+
+from src.utils import read_stub, save_stub
+
 
 class PlayerTracker:
-    def __init__(self, yolo_model_path='yolov8n.pt', max_age=30, conf_threshold=0.3):
+    """
+    A class for player detection and tracking using YOLOv8 and Deep SORT.
+    """
+
+    def __init__(self, model_path, max_age=30, conf_threshold=0.5):
         """
-        Initialize the player tracker.
-        
+        Initialize the YOLOv8 model and Deep SORT tracker.
+
         Args:
-            yolo_model_path (str): Path or name of the YOLOv8 model.
-            max_age (int): Max frames to keep lost tracks in Deep SORT.
-            conf_threshold (float): Confidence threshold for YOLO detections.
+            model_path (str): Path to the YOLO model weights.
+            max_age (int): Max number of frames to keep a lost track.
+            conf_threshold (float): Confidence threshold for detections.
         """
-        self.model = YOLO(yolo_model_path)
+        self.model = YOLO(model_path)
         self.tracker = DeepSort(max_age=max_age)
         self.conf_threshold = conf_threshold
 
-    def update(self, frame):
+    def process_batches(self, frames):
         """
-        Process a frame: detect players and update tracker.
-        
+        Run YOLO detection in batches on a list of frames.
+
         Args:
-            frame (np.array): The current video frame (BGR).
-        
+            frames (list): List of frames to process.
+
         Returns:
-            annotated_frame (np.array): Frame with drawn bounding boxes and IDs.
-            tracks_info (list): List of dicts with keys: track_id, bbox (x,y,w,h).
+            list: YOLO detection results.
         """
-        results = self.model(frame)[0]
-
         detections = []
-        for box, score, cls_id in zip(results.boxes.xyxy.cpu().numpy(),
-                                      results.boxes.conf.cpu().numpy(),
-                                      results.boxes.cls.cpu().numpy()):
-            if int(cls_id) == 4 and score > self.conf_threshold:  # Player class
-                x1, y1, x2, y2 = box.astype(int)
-                detections.append(([x1, y1, x2 - x1, y2 - y1], score, 'Player'))
+        for frame in frames:
+            result = self.model.predict(frame, conf=self.conf_threshold, verbose=False)
+            detections.append(result[0])
+        return detections
 
-        tracks = self.tracker.update_tracks(detections, frame=frame)
+    def track_players(self, frames, use_cache=False, cache_path=None):
+        """
+        Track players across frames and return tracking results.
 
-        tracks_info = []
-        for track in tracks:
-            if not track.is_confirmed():
-                continue
-            track_id = track.track_id
-            l, t, w, h = [int(i) for i in track.to_tlwh()]
-            tracks_info.append({'track_id': track_id, 'bbox': (l, t, w, h)})
+        Args:
+            frames (list): List of video frames.
+            use_cache (bool): Whether to read from a cached result.
+            cache_path (str): Path to the cache file.
 
-            # Draw bounding box + ID on frame
-            cv2.rectangle(frame, (l, t), (l + w, t + h), (0, 255, 0), 2)
-            cv2.putText(frame, f"ID {track_id}", (l, t - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        Returns:
+            list: List of dictionaries. Each dict maps track IDs to bounding boxes.
+        """
+        cached = read_stub(use_cache, cache_path)
+        if cached is not None and len(cached) == len(frames):
+            return cached
 
-        return frame, tracks_info
+        detections = self.process_batches(frames)
+        tracks_per_frame = []
 
+        for i, detection in enumerate(detections):
+            tracks_frame = {}
+            detections_input = []
 
+            for box, score, cls in zip(detection.boxes.xyxy.cpu().numpy(),
+                                       detection.boxes.conf.cpu().numpy(),
+                                       detection.boxes.cls.cpu().numpy()):
+                if int(cls) == 4 and score >= self.conf_threshold:  # Class 4 = Player
+                    x1, y1, x2, y2 = map(int, box)
+                    w, h = x2 - x1, y2 - y1
+                    bbox = [x1, y1, w, h]
+                    detections_input.append([bbox, score, 'player'])
+
+            # Update tracker and get current tracks
+            updated_tracks = self.tracker.update_tracks(detections_input, frame=frames[i])
+
+            for t in updated_tracks:
+                if not t.is_confirmed():
+                    continue
+                track_id = t.track_id
+                l, t_, w, h = map(int, t.to_tlwh())
+                tracks_frame[track_id] = {"bbox": [l, t_, w, h]}
+
+            tracks_per_frame.append(tracks_frame)
+
+        save_stub(cache_path, tracks_per_frame)
+        return tracks_per_frame
