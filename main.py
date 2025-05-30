@@ -1,8 +1,7 @@
 from src.tracks.player_tracker import PlayerTracker
-from src.draws import draw_player
-from src.tracks.ball_tracker1 import BallTracker
-from src.draws.ball_track_dar import BallTracksDrawer
+from src.draws.draw_player import PlayerTracksDrawer
 from src.utils import read_video, save_video
+from src.teams.teams_assigner import TeamAssigner
 import cv2
 
 model_path = "models/players_detection_model.pt"
@@ -15,6 +14,13 @@ tracker = PlayerTracker(model_path=model_path,
                         conf_threshold=0.5)
 
 player_tracks = tracker.track_players(frames=frames, cache_path="cache/stub.pkl", use_cache=True)
+
+team_assigner = TeamAssigner()
+player_teams = team_assigner.get_player_teams_across_frames(video_frames=frames,
+                                                              player_tracks=player_tracks,
+                                                              read_from_stub=True,
+                                                              stub_path="cache/team_assignments.pkl")
+print(player_teams)
 
 #drawer = PlayerTracksDrawer()
 
