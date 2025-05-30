@@ -1,24 +1,19 @@
 from src.tracks.player_tracker import PlayerTracker
+from src.draws import PlayerTracksDrawer
+from src.utils import read_video, save_video
 import cv2
 
+model_path = "models/players_detection_model.pt"
+video_path = "data/videos/video_1.mp4"
 
+frames, fps = read_video(video_path)
 
-if __name__ == "__main__":
+tracker = PlayerTracker(model_path=model_path,
+                        max_age=15,
+                        conf_threshold=0.5)
 
-    video_path = "data/videos/video_1.mp4"
-    cap = cv2.VideoCapture(video_path)
-    tracker = PlayerTracker(yolo_model_path="models/players_detection_model.pt", conf_threshold=0.5, max_age=15)
+player_tracks = tracker.track_players(frames=frames, cache_path="cache/stub.pkl", use_cache=True)
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+#drawer = PlayerTracksDrawer()
 
-        annotated_frame, tracks = tracker.update(frame)
-        cv2.imshow("Player Tracker", annotated_frame)
-        print("Tracks:", tracks)
-        if cv2.waitKey(1) == 27: 
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
+#drawer.draw(frames, player_tracks)
