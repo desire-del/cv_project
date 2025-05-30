@@ -176,3 +176,5 @@ runs/
 cache/
 .vscode/
 models/
+data/
+output/
