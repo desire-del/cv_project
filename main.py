@@ -5,6 +5,7 @@ from src.utils import read_video, save_video
 from src.teams.teams_assigner import TeamAssigner
 from src.tracks.ball_tracker import BallTracker
 from src.ball_aquisition.ball_aquisition_detector import BallAquisitionDetector
+from src.draws.teams_ball_pos_draw import TeamBallControlDrawer
 import cv2
 
 model_path = "models/players_detection_model.pt"
@@ -38,6 +39,7 @@ ball_acquisition = ball_acquisition_detector.detect_ball_possession(player_track
 
 player_drawer = PlayerTracksDrawer()
 ball_drawer = BallTracksDrawer()
+ball_possession_drawer = TeamBallControlDrawer(team_colors={1: [255, 245, 238], 2: [128, 0, 0]})
 
 output_frame = player_drawer.draw(video_frames=frames,
                    tracks=player_tracks,
@@ -46,6 +48,10 @@ output_frame = player_drawer.draw(video_frames=frames,
 
 output_frame = ball_drawer.draw(video_frames=output_frame,
                                  tracks=ball_tracks_result)
+
+output_frame = ball_possession_drawer.draw(video_frames=output_frame,
+                                            player_assignment=player_teams,
+                                            ball_acquisition=ball_acquisition)
 save_video(frames=output_frame,
            path="data/videos/video_1_output.mp4",
            fps=fps)
