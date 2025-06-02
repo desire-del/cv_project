@@ -1,6 +1,7 @@
 ipykernel
 numpy
 opencv_contrib_python
+opencv-python-headless
 pandas
 Pillow
 torch
