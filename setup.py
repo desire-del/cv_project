@@ -12,7 +12,20 @@ setup(
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     include_package_data=True,
-    install_requires=[line.strip() for line in open("requirements.txt") if line.strip() and not line.startswith("#")],
+    install_requires=[
+        "ipykernel",
+        "numpy",
+        "opencv_contrib_python",
+        "opencv-python-headless",
+        "pandas",
+        "Pillow",
+        "torch",
+        "transformers",
+        "ultralytics",
+        "deep_sort_realtime",
+        "supervision",
+        "streamlit"
+    ],
     python_requires=">=3.8",
     classifiers=[
         "Programming Language :: Python :: 3",
