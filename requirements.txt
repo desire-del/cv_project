@@ -10,3 +10,5 @@ ultralytics
 deep_sort_realtime
 supervision
 streamlit
+
+git+https://github.com/desire-del/cv_project.git#egg=cv_project
