@@ -35,6 +35,7 @@ def main():
     st.markdown("---")
 
     uploaded_video = st.file_uploader("Téléverser une vidéo", type=["mp4", "mov", "avi"])
+    default_video_path = "data/videos/video_1.mp4"  # 🟡 Remplace avec ton vrai chemin
 
     st.markdown("### Choisissez les couleurs des équipes")
 
@@ -47,35 +48,38 @@ def main():
         team2_color = st.color_picker("Couleur Équipe 2", "#800000", key="team2")
         st.markdown(f"<div style='height:20px;width:50px;background-color:{team2_color};border:1px solid #000'></div>", unsafe_allow_html=True)
 
-
+    # 🔁 Si aucune vidéo n'est uploadée, utiliser la vidéo par défaut
     if uploaded_video is not None:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
             tmp.write(uploaded_video.read())
             video_path = tmp.name
+    else:
+        st.warning("Aucune vidéo uploadée. La vidéo par défaut sera utilisée.")
+        video_path = default_video_path
 
-        st.info("Traitement en cours...")
+    st.info("Traitement en cours...")
 
-        output_video_path = process_pipeline(
-            video_path=video_path,
-            team_colors={1: hex_to_bgr(team1_color), 2: hex_to_bgr(team2_color)}
-        )
+    output_video_path = process_pipeline(
+        video_path=video_path,
+        team_colors={1: hex_to_bgr(team1_color), 2: hex_to_bgr(team2_color)}
+    )
 
-        st.success("Traitement terminé avec succès")
+    st.success("Traitement terminé avec succès")
 
-        st.markdown("### Résultats Vidéo")
+    st.markdown("### Résultats Vidéo")
 
-        input_col, output_col = st.columns(2)
+    input_col, output_col = st.columns(2)
 
-        with input_col:
-            st.subheader("Vidéo Originale")
-            st.video(video_path)
+    with input_col:
+        st.subheader("Vidéo Originale")
+        st.video(video_path)
 
-        with output_col:
-            st.subheader("Vidéo Annotée")
-            st.video(output_video_path)
+    with output_col:
+        st.subheader("Vidéo Annotée")
+        st.video(output_video_path)
 
-            with open(output_video_path, 'rb') as f:
-                st.download_button("📥 Télécharger la vidéo annotée", f, file_name="output.mp4")
+        with open(output_video_path, 'rb') as f:
+            st.download_button("📥 Télécharger la vidéo annotée", f, file_name="output.mp4")
 
     
 
