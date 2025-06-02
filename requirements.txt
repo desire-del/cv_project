@@ -1,6 +1,6 @@
 ipykernel
 numpy
-opencv_contrib_python
+opencv_python
 opencv-python-headless
 pandas
 Pillow
